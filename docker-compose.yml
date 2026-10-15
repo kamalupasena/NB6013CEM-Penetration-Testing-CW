@@ -1,0 +1,141 @@
+name: coursework-lab
+services:
+  juice:
+    image: bkimminich/juice-shop:v20.3.0
+    environment:
+      NODE_ENV: quiet
+    networks: [juice_net]
+    restart: unless-stopped
+    mem_limit: 768m
+  juice_web:
+    image: nginx:1.27.5-alpine
+    volumes:
+      - ./infra/nginx/juice.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./infra/nginx/assessment-quiet.js:/etc/nginx/assessment-quiet.js:ro
+      - ./infra/nginx/juice-public-config.json:/etc/nginx/juice-public-config.json:ro
+    ports:
+      - "127.0.0.1:${JUICE_PORT:-3000}:80"
+    depends_on:
+      juice: {condition: service_started}
+    networks: [juice_net, juice_edge]
+    restart: unless-stopped
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+  vehicle_db:
+    image: mysql:8.4.6
+    environment:
+      MYSQL_DATABASE: vehicle
+      MYSQL_USER: vehicle
+      MYSQL_PASSWORD: ${VEHICLE_DB_PASSWORD:-vehicle_lab_only_2026}
+      MYSQL_ROOT_PASSWORD: ${VEHICLE_DB_ROOT_PASSWORD:-vehicle_root_lab_only_2026}
+    volumes:
+      - vehicle_data:/var/lib/mysql
+      - ./apps/vehicle-portal/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    networks: [vehicle_net]
+    restart: unless-stopped
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+  vehicle_api:
+    build: ./apps/vehicle-portal/backend
+    environment:
+      DB_HOST: vehicle_db
+      DB_USER: vehicle
+      DB_PASSWORD: ${VEHICLE_DB_PASSWORD:-vehicle_lab_only_2026}
+      DB_NAME: vehicle
+      AUTH_SECRET: ${VEHICLE_AUTH_SECRET:-vehicle_local_synthetic_secret_change_for_class}
+      PORT: 4000
+    depends_on:
+      vehicle_db: {condition: service_healthy}
+    networks: [vehicle_net]
+    restart: unless-stopped
+    mem_limit: 384m
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:4000/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+  vehicle_web:
+    build: ./apps/vehicle-portal/frontend
+    ports:
+      - "127.0.0.1:${VEHICLE_PORT:-8081}:80"
+    depends_on:
+      vehicle_api: {condition: service_healthy}
+    networks: [vehicle_net, vehicle_edge]
+    restart: unless-stopped
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+  bank_db:
+    image: mysql:8.4.6
+    environment:
+      MYSQL_DATABASE: bank
+      MYSQL_USER: bank
+      MYSQL_PASSWORD: ${BANK_DB_PASSWORD:-bank_lab_only_2026}
+      MYSQL_ROOT_PASSWORD: ${BANK_DB_ROOT_PASSWORD:-bank_root_lab_only_2026}
+    volumes:
+      - bank_data:/var/lib/mysql
+      - ./apps/securebank/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    networks: [bank_net]
+    restart: unless-stopped
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+  bank_api:
+    build: ./apps/securebank/backend
+    environment:
+      DB_HOST: bank_db
+      DB_USER: bank
+      DB_PASSWORD: ${BANK_DB_PASSWORD:-bank_lab_only_2026}
+      DB_NAME: bank
+      AUTH_SECRET: ${BANK_AUTH_SECRET:-bank_local_synthetic_secret_change_for_class}
+      PORT: 4000
+    depends_on:
+      bank_db: {condition: service_healthy}
+    networks: [bank_net]
+    restart: unless-stopped
+    mem_limit: 384m
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:4000/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+  bank_web:
+    build: ./apps/securebank/frontend
+    ports:
+      - "127.0.0.1:${BANK_PORT:-8082}:80"
+    depends_on:
+      bank_api: {condition: service_healthy}
+    networks: [bank_net, bank_edge]
+    restart: unless-stopped
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+networks:
+  juice_net: {internal: true}
+  juice_edge: {}
+  vehicle_net: {internal: true}
+  vehicle_edge: {}
+  bank_net: {internal: true}
+  bank_edge: {}
+volumes:
+  vehicle_data:
+    name: coursework-lab_vehicle_data
+  bank_data:
+    name: coursework-lab_bank_data

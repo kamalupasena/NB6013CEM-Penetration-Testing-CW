@@ -1,0 +1,7 @@
+# Independent penetration testing report
+
+Assess the three supplied lab systems and submit a report of approximately 3,500 words. This is an authorized exercise limited to your assigned lab instance. Work independently and use only synthetic accounts and data. Your testing may include reconnaissance, browser and API exploration, controlled proof of impact, and evidence collection. Do not target the Docker host, other students' instances, public sites, or real services. Avoid destructive payloads, persistent denial of service, and attempts to move beyond the lab networks.
+
+For each finding, include the affected system and workflow, prerequisites, reproducible request sequence, observed result, impact on confidentiality/integrity/availability, severity using CVSS v4.0 (or a clearly explained alternative), and a specific remediation. Distinguish observed facts from hypotheses. Include sanitized HTTP evidence, screenshots where helpful, and timestamps. Redact session cookies and passwords. If a test changes data, state how you restored it. A concise attack surface map, methodology, prioritized summary, and limitations should frame the findings.
+
+Submit one PDF report with an executive summary, scope and method, findings, risk table, remediation plan, references, and appendix of evidence. Include only evidence from your own instance. The report will be assessed on reconnaissance and mapping (10), identification (20), validated impact and evidence (25), risk scoring (15), remediation (15), and report clarity (15), for 100 points total.
